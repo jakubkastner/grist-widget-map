@@ -368,8 +368,6 @@ function updateMap(data) {
 
   makeSureSelectedMarkerIsShown();
 }
-
-
 function clearPopupMarker() {
   const marker = popups[selectedRowId];
   if (marker) {
@@ -441,15 +439,69 @@ function selectOnMap(rec) {
   }
 }
 
+// Function to get choice options from a column using Grist API
+async function getChoiceOptionsFromColumn(tableId, columnName) {
+  try {
+    // Fetch table metadata
+    const tables = await grist.docApi.fetchTable('_grist_Tables');
+    const columns = await grist.docApi.fetchTable('_grist_Tables_column');
+
+    // Find our table
+    const tableRef = tables.id[tables.tableId.indexOf(tableId)];
+    if (!tableRef) { return []; }
+
+    // Find the column in our table
+    const columnIndex = columns.id.findIndex(
+      (id, i) => columns.parentId[i] === tableRef && columns.colId[i] === columnName
+    );
+
+    if (columnIndex === -1) { return []; }
+
+    // Get widget options (contains choice values)
+    const widgetOptions = columns.widgetOptions[columnIndex];
+    if (!widgetOptions) { return []; }
+
+    const options = JSON.parse(widgetOptions);
+    const choices = options.choices || [];
+
+    return choices;
+  } catch (err) {
+    console.warn('Could not fetch choice options:', err);
+    return [];
+  }
+}
+
+// Initialize color map from choice column metadata
+async function initializeColorMapFromChoiceColumn(tableId) {
+  try {
+    const choices = await getChoiceOptionsFromColumn(tableId, MarkerColor);
+
+    if (choices.length === 0) { return; }
+
+    // Initialize markerColorMap with default colors for each choice
+    choices.forEach(choice => {
+      if (!(choice in markerColorMap)) {
+        markerColorMap[choice] = generateRandomColor();
+      }
+    });
+
+    updateMarkerColorUI();
+  } catch (err) {
+    console.warn('Error initializing color map:', err);
+  }
+}
+
 grist.onRecord((record, mappings) => {
   if (mode === 'single') {
-    // If mappings are not done, we will assume that table has correct columns.
-    // This is done to support existing widgets which where configured by
-    // renaming column names.
     lastRecord = grist.mapColumnNames(record) || record;
 
-    // Initialize color map if MarkerColor column is mapped
-    if (MarkerColor in lastRecord) {
+    // Try to initialize from choice column metadata
+    if (selectedTableId && MarkerColor in (mappings || {})) {
+      initializeColorMapFromChoiceColumn(selectedTableId);
+    }
+
+    // Also initialize from actual record if available
+    if (lastRecord && MarkerColor in lastRecord) {
       initializeColorMapFromRecords([lastRecord]);
     }
 
@@ -463,14 +515,19 @@ grist.onRecord((record, mappings) => {
   }
 });
 
-// Hook into record changes to initialize color map
 grist.onRecords((data, mappings) => {
-  // Initialize color map from records if MarkerColor column is mapped
-  if (data && data.length > 0 && MarkerColor in data[0]) {
-    initializeColorMapFromRecords(data);
+  lastRecords = grist.mapColumnNames(data) || data;
+
+  // Try to initialize from choice column metadata
+  if (selectedTableId && MarkerColor in (mappings || {})) {
+    initializeColorMapFromChoiceColumn(selectedTableId);
   }
 
-  lastRecords = grist.mapColumnNames(data) || data;
+  // Also initialize from actual data if available
+  if (lastRecords && lastRecords.length > 0 && MarkerColor in lastRecords[0]) {
+    initializeColorMapFromRecords(lastRecords);
+  }
+
   if (mode !== 'single') {
     updateMap(lastRecords);
     if (lastRecord) {
@@ -613,27 +670,31 @@ grist.ready({
 grist.onOptions((options, interaction) => {
   writeAccess = interaction.accessLevel === 'full';
 
-  // Load options with proper null checks
-  if (options) {
-    const newMode = options.mode ?? mode;
-    mode = newMode;
+  // Load options only if they exist
+  if (options?.markerColorMap) {
+    markerColorMap = options.markerColorMap;
+  }
 
-    const newSource = options.mapSource ?? mapSource;
-    mapSource = newSource;
-    document.getElementById("mapSource").value = mapSource;
-
-    const newCopyright = options.mapCopyright ?? mapCopyright;
-    mapCopyright = newCopyright;
-    document.getElementById("mapCopyright").value = mapCopyright;
-
-    // Load marker color mappings from options
-    if (options.markerColorMap) {
-      markerColorMap = options.markerColorMap;
-      updateMarkerColorUI();
-    }
-
-    if (newMode != mode && lastRecords) {
+  if (options?.mode) {
+    mode = options.mode;
+    if (lastRecords) {
       updateMode();
+    }
+  }
+
+  if (options?.mapSource) {
+    mapSource = options.mapSource;
+    const mapSourceInput = document.getElementById("mapSource");
+    if (mapSourceInput) {
+      mapSourceInput.value = mapSource;
+    }
+  }
+
+  if (options?.mapCopyright) {
+    mapCopyright = options.mapCopyright;
+    const mapCopyrightInput = document.getElementById("mapCopyright");
+    if (mapCopyrightInput) {
+      mapCopyrightInput.value = mapCopyright;
     }
   }
 });
