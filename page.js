@@ -30,7 +30,7 @@ let lastRecord;
 let lastRecords;
 
 // Default marker colors for different choice values
-let markerColorMap = {};
+let markerColorMap = {}; // {colorValue: '#hexColor'}
 const defaultMarkerColor = '#0033ff'; // default blue color for markers
 
 //Color markers downloaded from leaflet repo, color-shifted to green
@@ -46,48 +46,55 @@ const selectedIcon = new L.Icon({
 });
 const defaultIcon = new L.Icon.Default();
 
+// Cache for created SVG icons
+const iconCache = {};
 
-// Function to create a custom icon with specific color
-function createColoredIcon(hexColor) {
-  // Using FontAwesome or similar icon service - for now we'll use a simple circle marker approach
-  // or we can use a basic colored marker from a service like https://maps.google.com/mapfiles/ms/icons/
-  const colorCode = hexColor.replace('#', '').toLowerCase();
-  return new L.Icon({
-    iconUrl: `https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-${colorCode}.png`,
-    iconRetinaUrl: `https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-${colorCode}-2x.png`,
-    shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
-    iconSize: [25, 41],
-    iconAnchor: [12, 41],
-    popupAnchor: [1, -34],
-    shadowSize: [41, 41]
-  });
-}
+// Creates a custom SVG marker icon with specific color
+function createSVGIcon(hexColor) {
+  if (iconCache[hexColor]) {
+    return iconCache[hexColor];
+  }
 
-// Fallback: create a simple SVG marker if color is not standard
-function createSimpleColoredIcon(hexColor) {
-  const svgString = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 25 41">
-    <path d="M12.5,0 C5.6,0 0,5.6 0,12.5 C0,21.2 12.5,41 12.5,41 C12.5,41 25,21.2 25,12.5 C25,5.6 19.4,0 12.5,0 Z" fill="${hexColor}" stroke="white" stroke-width="1"/>
-    <circle cx="12.5" cy="12.5" r="5" fill="white"/>
+  const svgString = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 25 41" width="25" height="41">
+    <defs>
+      <filter id="shadow" x="-50%" y="-50%" width="200%" height="200%">
+        <feDropShadow dx="0" dy="1" stdDeviation="1" flood-opacity="0.3"/>
+      </filter>
+    </defs>
+    <path d="M12.5,0 C5.6,0 0,5.6 0,12.5 C0,21.2 12.5,41 12.5,41 C12.5,41 25,21.2 25,12.5 C25,5.6 19.4,0 12.5,0 Z"
+          fill="${hexColor}" stroke="white" stroke-width="1.5" filter="url(#shadow)"/>
+    <circle cx="12.5" cy="12.5" r="5.5" fill="white" opacity="0.9"/>
   </svg>`;
+
   const svgBlob = new Blob([svgString], { type: 'image/svg+xml' });
   const svgUrl = URL.createObjectURL(svgBlob);
-  return new L.Icon({
+
+  const icon = new L.Icon({
     iconUrl: svgUrl,
     iconSize: [25, 41],
     iconAnchor: [12, 41],
     popupAnchor: [1, -34],
     shadowSize: [41, 41]
   });
+
+  iconCache[hexColor] = icon;
+  return icon;
 }
 
 // Gets the icon for a marker based on marker color value
 function getMarkerIcon(markerColorValue) {
-  if (!markerColorValue || !markerColorMap[markerColorValue]) {
-    // Use default icon if color mapping not available
+  if (!markerColorValue) {
+    // Use default icon if no color value
     return defaultIcon;
   }
+
   const hexColor = markerColorMap[markerColorValue];
-  return createSimpleColoredIcon(hexColor);
+  if (!hexColor) {
+    // Use default icon if color not in map
+    return defaultIcon;
+  }
+
+  return createSVGIcon(hexColor);
 }
 
 // Creates clusterIcons that highlight if they contain selected row
@@ -323,7 +330,7 @@ function updateMap(data) {
     const pt = new L.LatLng(lat, lng);
     points.push(pt);
 
-    // Determine the icon based on whether we have color mapping
+    // Determine the icon: selected row uses selectedIcon, otherwise use color mapping
     const iconToUse = (id == selectedRowId) ? selectedIcon : getMarkerIcon(markerColor);
 
     const marker = L.marker(pt, {
@@ -485,6 +492,74 @@ function updateMode() {
   }
 }
 
+// Gather all unique color values from records and initialize color map
+function initializeColorMapFromRecords(records) {
+  if (!records || records.length === 0) { return; }
+
+  const colorValues = new Set();
+  for (const rec of records) {
+    if (MarkerColor in rec) {
+      const colorValue = parseValue(rec[MarkerColor]);
+      if (colorValue) {
+        colorValues.add(colorValue);
+      }
+    }
+  }
+
+  // Initialize markerColorMap with default colors for new values
+  colorValues.forEach(value => {
+    if (!(value in markerColorMap)) {
+      // Generate a random color for new values
+      markerColorMap[value] = generateRandomColor();
+    }
+  });
+
+  // Update UI
+  updateMarkerColorUI();
+}
+
+// Generate a random color in hex format
+function generateRandomColor() {
+  const letters = '0123456789ABCDEF';
+  let color = '#';
+  for (let i = 0; i < 6; i++) {
+    color += letters[Math.floor(Math.random() * 16)];
+  }
+  return color;
+}
+
+function updateMarkerColorUI() {
+  const colorMappingsContainer = document.getElementById("markerColorMappings");
+  if (!colorMappingsContainer) { return; }
+
+  colorMappingsContainer.innerHTML = '';
+
+  // If no mappings, show message
+  if (Object.keys(markerColorMap).length === 0) {
+    colorMappingsContainer.innerHTML = '<p style="color: #999; font-size: 12px; margin: 0;">No marker color column mapped</p>';
+    return;
+  }
+
+  Object.entries(markerColorMap).forEach(([colorValue, hexColor]) => {
+    const div = document.createElement('div');
+    div.className = 'color-mapping-row';
+    div.innerHTML = `
+      <label title="${colorValue}">${colorValue}</label>
+      <input type="color" value="${hexColor}" data-color-value="${colorValue}">
+    `;
+    const colorInput = div.querySelector('input[type="color"]');
+    colorInput.onchange = async (e) => {
+      markerColorMap[colorValue] = e.target.value;
+      await grist.setOption('markerColorMap', markerColorMap);
+      // Refresh map to update marker colors
+      if (selectedRecords) {
+        updateMap(selectedRecords);
+      }
+    }
+    colorMappingsContainer.appendChild(div);
+  });
+}
+
 function onEditOptions() {
   const popup = document.getElementById("settings");
   popup.style.display = 'block';
@@ -507,33 +582,8 @@ function onEditOptions() {
     }
   })
 
-  // Load and display marker color mappings
+  // Update marker color UI
   updateMarkerColorUI();
-}
-
-function updateMarkerColorUI() {
-  const colorMappingsContainer = document.getElementById("markerColorMappings");
-  if (!colorMappingsContainer) { return; }
-
-  colorMappingsContainer.innerHTML = '';
-  Object.entries(markerColorMap).forEach(([colorValue, hexColor]) => {
-    const div = document.createElement('div');
-    div.className = 'color-mapping-row';
-    div.innerHTML = `
-      <label>${colorValue}</label>
-      <input type="color" value="${hexColor}" data-color-value="${colorValue}">
-    `;
-    const colorInput = div.querySelector('input[type="color"]');
-    colorInput.onchange = async (e) => {
-      markerColorMap[colorValue] = e.target.value;
-      await grist.setOption('markerColorMap', markerColorMap);
-      // Refresh map to update marker colors
-      if (selectedRecords) {
-        updateMap(selectedRecords);
-      }
-    }
-    colorMappingsContainer.appendChild(div);
-  });
 }
 
 const optional = true;
@@ -543,7 +593,7 @@ grist.ready({
     { name: "Longitude", type: 'Numeric' },
     { name: "Latitude", type: 'Numeric' },
     { name: "Geocode", type: 'Bool', title: 'Geocode', optional },
-    { name: "Address", type: 'Text', optional, optional },
+    { name: "Address", type: 'Text', optional },
     { name: "GeocodedAddress", type: 'Text', title: 'Geocoded Address', optional },
     { name: "MarkerColor", type: 'Choice', title: 'Marker Color', optional, description: 'Select column for marker coloring' },
   ],
@@ -562,11 +612,29 @@ grist.onOptions((options, interaction) => {
   mapSource = newSource;
   document.getElementById("mapSource").value = mapSource;
   const newCopyright = options?.mapCopyright ?? mapCopyright;
-  mapCopyright = newCopyright
+  mapCopyright = newCopyright;
   document.getElementById("mapCopyright").value = mapCopyright;
 
   // Load marker color mappings from options
   if (options?.markerColorMap) {
     markerColorMap = options.markerColorMap;
+  }
+});
+
+// Hook into record changes to initialize color map
+const originalOnRecords = grist.onRecords;
+grist.onRecords((data, mappings) => {
+  // Initialize color map from records
+  if (MarkerColor in (data?.[0] || {})) {
+    initializeColorMapFromRecords(data);
+  }
+
+  lastRecords = grist.mapColumnNames(data) || data;
+  if (mode !== 'single') {
+    updateMap(lastRecords);
+    if (lastRecord) {
+      selectOnMap(lastRecord);
+    }
+    scanOnNeed(defaultMapping(data[0], mappings));
   }
 });
