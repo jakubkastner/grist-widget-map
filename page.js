@@ -533,16 +533,6 @@ grist.onRecord((record, mappings) => {
 grist.onRecords((data, mappings) => {
   lastRecords = grist.mapColumnNames(data) || data;
 
-  // Try to initialize from choice column metadata
-  if (selectedTableId && MarkerColor in (mappings || {})) {
-    initializeColorMapFromChoiceColumn(selectedTableId);
-  }
-
-  // Also initialize from actual data if available
-  if (lastRecords && lastRecords.length > 0 && MarkerColor in lastRecords[0]) {
-    initializeColorMapFromRecords(lastRecords);
-  }
-
   if (mode !== 'single') {
     updateMap(lastRecords);
     if (lastRecord) {
@@ -785,5 +775,16 @@ grist.onOptions((options, interaction) => {
     if (mapCopyrightInput) {
       mapCopyrightInput.value = mapCopyright;
     }
+  }
+
+  // Initialize missing colors from records AFTER loading saved colors from options
+  if (selectedTableId && MarkerColor && lastRecords && lastRecords.length > 0) {
+    // First try from choice column metadata
+    initializeColorMapFromChoiceColumn(selectedTableId);
+  }
+
+  // Then initialize from actual data (only for values not already in map)
+  if (lastRecords && lastRecords.length > 0 && MarkerColor in lastRecords[0]) {
+    initializeColorMapFromRecords(lastRecords);
   }
 });
