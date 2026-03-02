@@ -447,6 +447,12 @@ grist.onRecord((record, mappings) => {
     // This is done to support existing widgets which where configured by
     // renaming column names.
     lastRecord = grist.mapColumnNames(record) || record;
+
+    // Initialize color map if MarkerColor column is mapped
+    if (MarkerColor in lastRecord) {
+      initializeColorMapFromRecords([lastRecord]);
+    }
+
     selectOnMap(lastRecord);
     scanOnNeed(defaultMapping(record, mappings));
   } else {
@@ -456,17 +462,20 @@ grist.onRecord((record, mappings) => {
     marker.openPopup();
   }
 });
+
+// Hook into record changes to initialize color map
 grist.onRecords((data, mappings) => {
+  // Initialize color map from records if MarkerColor column is mapped
+  if (data && data.length > 0 && MarkerColor in data[0]) {
+    initializeColorMapFromRecords(data);
+  }
+
   lastRecords = grist.mapColumnNames(data) || data;
   if (mode !== 'single') {
-    // If mappings are not done, we will assume that table has correct columns.
-    // This is done to support existing widgets which where configured by
-    // renaming column names.
     updateMap(lastRecords);
     if (lastRecord) {
       selectOnMap(lastRecord);
     }
-    // We need to mimic the mappings for old widgets
     scanOnNeed(defaultMapping(data[0], mappings));
   }
 });
@@ -603,38 +612,28 @@ grist.ready({
 
 grist.onOptions((options, interaction) => {
   writeAccess = interaction.accessLevel === 'full';
-  const newMode = options?.mode ?? mode;
-  mode = newMode;
-  if (newMode != mode && lastRecords) {
-    updateMode();
-  }
-  const newSource = options?.mapSource ?? mapSource;
-  mapSource = newSource;
-  document.getElementById("mapSource").value = mapSource;
-  const newCopyright = options?.mapCopyright ?? mapCopyright;
-  mapCopyright = newCopyright;
-  document.getElementById("mapCopyright").value = mapCopyright;
 
-  // Load marker color mappings from options
-  if (options?.markerColorMap) {
-    markerColorMap = options.markerColorMap;
-  }
-});
+  // Load options with proper null checks
+  if (options) {
+    const newMode = options.mode ?? mode;
+    mode = newMode;
 
-// Hook into record changes to initialize color map
-const originalOnRecords = grist.onRecords;
-grist.onRecords((data, mappings) => {
-  // Initialize color map from records
-  if (MarkerColor in (data?.[0] || {})) {
-    initializeColorMapFromRecords(data);
-  }
+    const newSource = options.mapSource ?? mapSource;
+    mapSource = newSource;
+    document.getElementById("mapSource").value = mapSource;
 
-  lastRecords = grist.mapColumnNames(data) || data;
-  if (mode !== 'single') {
-    updateMap(lastRecords);
-    if (lastRecord) {
-      selectOnMap(lastRecord);
+    const newCopyright = options.mapCopyright ?? mapCopyright;
+    mapCopyright = newCopyright;
+    document.getElementById("mapCopyright").value = mapCopyright;
+
+    // Load marker color mappings from options
+    if (options.markerColorMap) {
+      markerColorMap = options.markerColorMap;
+      updateMarkerColorUI();
     }
-    scanOnNeed(defaultMapping(data[0], mappings));
+
+    if (newMode != mode && lastRecords) {
+      updateMode();
+    }
   }
 });
