@@ -1,9 +1,11 @@
 #map {
-  width: 100vw; 
+  width: 100vw;
   height: 100vh;
 }
 
-html, body, #map {
+html,
+body,
+#map {
   margin: 0;
   padding: 0;
   background:
@@ -13,7 +15,7 @@ html, body, #map {
     linear-gradient(45deg, transparent 74px, transparent 75px, #a4a4a4 75px, #a4a4a4 76px, transparent 77px, transparent 109px),
     linear-gradient(-45deg, transparent 75px, transparent 76px, #a4a4a4 76px, #a4a4a4 77px, transparent 78px, transparent 109px),
     #fff;
-  background-size: 109px 109px, 109px 109px,100% 6px, 109px 109px, 109px 109px;
+  background-size: 109px 109px, 109px 109px, 100% 6px, 109px 109px, 109px 109px;
   background-position: 54px 55px, 0px 0px, 0px 0px, 0px 0px, 0px 0px;
 }
 
@@ -35,18 +37,22 @@ html, body, #map {
   display: none;
   background: white;
 }
-#settings > * {
+
+#settings>* {
   color: black;
 }
+
 #btnClose {
   font-size: small;
   margin-bottom: 5px;
   text-align: right;
   cursor: pointer;
 }
+
 #btnClose:hover {
   text-decoration: underline;
 }
+
 #lblText {
   min-width: 100px;
   display: inline-block;

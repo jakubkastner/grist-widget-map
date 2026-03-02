@@ -30,7 +30,7 @@ let lastRecords;
 
 //Color markers downloaded from leaflet repo, color-shifted to green
 //Used to show currently selected pin
-const selectedIcon =  new L.Icon({
+const selectedIcon = new L.Icon({
   iconUrl: 'marker-icon-green.png',
   iconRetinaUrl: 'marker-icon-green-2x.png',
   shadowUrl: 'marker-shadow.png',
@@ -39,7 +39,7 @@ const selectedIcon =  new L.Icon({
   popupAnchor: [1, -34],
   shadowSize: [41, 41]
 });
-const defaultIcon =  new L.Icon.Default();
+const defaultIcon = new L.Icon.Default();
 
 
 
@@ -53,7 +53,7 @@ const defaultIcon =  new L.Icon.Default();
 // Copied from _defaultIconCreateFunction in ClusterMarkerGroup
 //    https://github.com/Leaflet/Leaflet.markercluster/blob/master/src/MarkerClusterGroup.js
 const selectedRowClusterIconFactory = function (selectedMarkerGetter) {
-  return function(cluster) {
+  return function (cluster) {
     var childCount = cluster.getChildCount();
 
     let isSelected = false;
@@ -79,12 +79,12 @@ const selectedRowClusterIconFactory = function (selectedMarkerGetter) {
     }
 
     return new L.DivIcon({
-        html: '<div><span>'
-            + childCount
-            + ' <span aria-label="markers"></span>'
-            + '</span></div>',
-        className: 'marker-cluster' + c + (isSelected ? ' marker-cluster-selected' : ''),
-        iconSize: new L.Point(40, 40)
+      html: '<div><span>'
+        + childCount
+        + ' <span aria-label="markers"></span>'
+        + '</span></div>',
+      className: 'marker-cluster' + c + (isSelected ? ' marker-cluster-selected' : ''),
+      iconSize: new L.Point(40, 40)
     });
   }
 };
@@ -153,11 +153,11 @@ async function scan(tableId, records, mappings) {
       // Find coordinates.
       const result = await geocode(address);
       // Update them, and update cache (if the field was mapped)
-      await grist.docApi.applyUserActions([ ['UpdateRecord', tableId, record.id, {
+      await grist.docApi.applyUserActions([['UpdateRecord', tableId, record.id, {
         [mappings[Longitude]]: result?.lng ?? null,
         [mappings[Latitude]]: result?.lat ?? null,
-        ...(GeocodedAddress in mappings && mappings[GeocodedAddress]) ? {[mappings[GeocodedAddress]]: address} : undefined
-      }] ]);
+        ...(GeocodedAddress in mappings && mappings[GeocodedAddress]) ? { [mappings[GeocodedAddress]]: address } : undefined
+      }]]);
       await delay(1000);
     }
   }
@@ -176,7 +176,7 @@ function showProblem(txt) {
 // Little extra wrinkle to deal with showing differences.  Should be taken
 // care of by Grist once diffing is out of beta.
 function parseValue(v) {
-  if (typeof(v) === 'object' && v !== null && v.value && v.value.startsWith('V(')) {
+  if (typeof (v) === 'object' && v !== null && v.value && v.value.startsWith('V(')) {
     const payload = JSON.parse(v.value.slice(2, v.value.length - 1));
     return payload.remote || payload.local || payload.parent || payload;
   }
@@ -194,7 +194,7 @@ function getInfo(rec) {
 }
 
 // Function to clear last added markers. Used to clear the map when new record is selected.
-let clearMarkers = () => {};
+let clearMarkers = () => { };
 
 let markers = [];
 
@@ -206,8 +206,8 @@ function updateMap(data) {
     return;
   }
   if (!(Longitude in data[0] && Latitude in data[0] && Name in data[0])) {
-    showProblem("Table does not yet have all expected columns: Name, Longitude, Latitude. You can map custom columns"+
-    " in the Creator Panel.");
+    showProblem("Table does not yet have all expected columns: Name, Longitude, Latitude. You can map custom columns" +
+      " in the Creator Panel.");
     return;
   }
 
@@ -217,7 +217,7 @@ function updateMap(data) {
   //    Old source was natgeo world map, but that only has data up to zoom 16
   //    (can't zoom in tighter than about 10 city blocks across)
   //
-  const tiles = L.tileLayer(mapSource, { attribution: DOMPurify.sanitize(mapCopyright, {FORCE_BODY: true})});
+  const tiles = L.tileLayer(mapSource, { attribution: DOMPurify.sanitize(mapCopyright, { FORCE_BODY: true }) });
 
   const error = document.querySelector('.error');
   if (error) { error.remove(); }
@@ -238,8 +238,8 @@ function updateMap(data) {
   // Make sure clusters always show up above points
   // Default z-index for markers is 600, 650 is where tooltipPane z-index starts
   map.createPane('selectedMarker').style.zIndex = 620;
-  map.createPane('clusters'      ).style.zIndex = 610;
-  map.createPane('otherMarkers'  ).style.zIndex = 600;
+  map.createPane('clusters').style.zIndex = 610;
+  map.createPane('otherMarkers').style.zIndex = 600;
 
   const points = []; //L.LatLng[], used for zooming to bounds of all markers
 
@@ -265,7 +265,7 @@ function updateMap(data) {
   });
 
   for (const rec of data) {
-    const {id, name, lng, lat} = getInfo(rec);
+    const { id, name, lng, lat } = getInfo(rec);
     // If the record is in the middle of geocoding, skip it.
     if (String(lng) === '...') { continue; }
     if (Math.abs(lat) < 0.01 && Math.abs(lng) < 0.01) {
@@ -278,7 +278,7 @@ function updateMap(data) {
     const marker = L.marker(pt, {
       title: name,
       id: id,
-      icon: (id == selectedRowId) ?  selectedIcon    :  defaultIcon,
+      icon: (id == selectedRowId) ? selectedIcon : defaultIcon,
       pane: (id == selectedRowId) ? "selectedMarker" : "otherMarkers",
     });
 
@@ -292,7 +292,7 @@ function updateMap(data) {
   clearMarkers = () => map.removeLayer(markers);
 
   try {
-    map.fitBounds(new L.LatLngBounds(points), {maxZoom: 15, padding: [0, 0]});
+    map.fitBounds(new L.LatLngBounds(points), { maxZoom: 15, padding: [0, 0] });
   } catch (err) {
     console.warn('cannot fit bounds');
   }
@@ -322,29 +322,29 @@ function clearPopupMarker() {
 }
 
 function selectMaker(id) {
-   // Reset the options from the previously selected marker.
-   const previouslyClicked = popups[selectedRowId];
-   if (previouslyClicked) {
-     previouslyClicked.setIcon(defaultIcon);
-     previouslyClicked.pane = 'otherMarkers';
-   }
-   const marker = popups[id];
-   if (!marker) { return null; }
+  // Reset the options from the previously selected marker.
+  const previouslyClicked = popups[selectedRowId];
+  if (previouslyClicked) {
+    previouslyClicked.setIcon(defaultIcon);
+    previouslyClicked.pane = 'otherMarkers';
+  }
+  const marker = popups[id];
+  if (!marker) { return null; }
 
-   // Remember the new selected marker.
-   selectedRowId = id;
+  // Remember the new selected marker.
+  selectedRowId = id;
 
-   // Set the options for the newly selected marker.
-   marker.setIcon(selectedIcon);
-   marker.pane = 'selectedMarker';
+  // Set the options for the newly selected marker.
+  marker.setIcon(selectedIcon);
+  marker.pane = 'selectedMarker';
 
-   // Rerender markers in this cluster
-   markers.refreshClusters();
+  // Rerender markers in this cluster
+  markers.refreshClusters();
 
-   // Update the selected row in Grist.
-   grist.setCursorPos?.({rowId: id}).catch(() => {});
+  // Update the selected row in Grist.
+  grist.setCursorPos?.({ rowId: id }).catch(() => { });
 
-   return marker;
+  return marker;
 }
 
 
@@ -415,7 +415,7 @@ grist.onRecords((data, mappings) => {
 grist.onNewRecord(() => {
   if (mode === 'single') {
     clearMarkers();
-    clearMarkers = () => {};
+    clearMarkers = () => { };
   } else {
     clearPopupMarker();
   }
@@ -448,7 +448,7 @@ function onEditOptions() {
       updateMode();
     }
   }
-  [ "mapSource", "mapCopyright" ].forEach((opt) => {
+  ["mapSource", "mapCopyright"].forEach((opt) => {
     const ipt = document.getElementById(opt)
     ipt.onchange = async (e) => {
       await grist.setOption(opt, e.target.value);
@@ -460,11 +460,11 @@ const optional = true;
 grist.ready({
   columns: [
     "Name",
-    { name: "Longitude", type: 'Numeric'} ,
-    { name: "Latitude", type: 'Numeric'},
-    { name: "Geocode", type: 'Bool', title: 'Geocode', optional},
-    { name: "Address", type: 'Text', optional, optional},
-    { name: "GeocodedAddress", type: 'Text', title: 'Geocoded Address', optional},
+    { name: "Longitude", type: 'Numeric' },
+    { name: "Latitude", type: 'Numeric' },
+    { name: "Geocode", type: 'Bool', title: 'Geocode', optional },
+    { name: "Address", type: 'Text', optional, optional },
+    { name: "GeocodedAddress", type: 'Text', title: 'Geocoded Address', optional },
   ],
   allowSelectBy: true,
   onEditOptions
