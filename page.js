@@ -545,7 +545,7 @@ grist.ready({
     { name: "Geocode", type: 'Bool', title: 'Geocode', optional },
     { name: "Address", type: 'Text', optional, optional },
     { name: "GeocodedAddress", type: 'Text', title: 'Geocoded Address', optional },
-    { name: "MarkerColor", type: 'Text', title: 'Marker Color', optional, description: 'Choice column for marker coloring' },
+    { name: "MarkerColor", type: 'Choice', title: 'Marker Color', optional, description: 'Select column for marker coloring' },
   ],
   allowSelectBy: true,
   onEditOptions
