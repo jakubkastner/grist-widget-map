@@ -167,6 +167,8 @@ async function delay(ms) {
 
 // If widget has wright access
 let writeAccess = true;
+// Current access level from grist
+let accessLevel = 'read table';
 // A ongoing scanning promise, to check if we are in progress.
 let scanning = null;
 
@@ -322,8 +324,8 @@ function updateMap(data) {
     const pt = new L.LatLng(lat, lng);
     points.push(pt);
 
-    // Determine the icon: selected row uses selectedIcon, otherwise use color mapping
-    const iconToUse = (id == selectedRowId) ? selectedIcon : getMarkerIcon(markerColor);
+    // Determine the icon: selected row uses selected color, otherwise use color mapping
+    const iconToUse = (id == selectedRowId) ? createSVGIcon(selectedRowColor) : getMarkerIcon(markerColor);
 
     const marker = L.marker(pt, {
       title: name,
@@ -442,6 +444,12 @@ function selectOnMap(rec) {
 // Function to get choice options from a column using Grist API
 async function getChoiceOptionsFromColumn(tableId, columnName) {
   try {
+    // We need 'full' access to read system tables metadata
+    // With 'read table' access, we can't fetch _grist_Tables
+    if (accessLevel !== 'full') {
+      return [];
+    }
+
     // Fetch table metadata
     const tables = await grist.docApi.fetchTable('_grist_Tables');
     const columns = await grist.docApi.fetchTable('_grist_Tables_column');
@@ -741,6 +749,7 @@ grist.ready({
 
 grist.onOptions((options, interaction) => {
   writeAccess = interaction.accessLevel === 'full';
+  accessLevel = interaction.accessLevel;
 
   // Load options only if they exist
   if (options?.markerColorMap) {
